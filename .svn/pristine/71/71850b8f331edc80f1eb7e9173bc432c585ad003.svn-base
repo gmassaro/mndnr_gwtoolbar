@@ -1,0 +1,51 @@
+﻿<ESRI.Configuration xmlns="http://schemas.esri.com/Desktop/AddIns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>DNR Groundwater Tools</Name>
+  <AddInID>{efc2b126-014c-4f66-884a-0ed2b06f3f26}</AddInID>
+  <Description>A collection of MNDNR tools dealing with the generation of GIS data on groundwater and the analysis of GIS surface water data.</Description>
+  <Version>1.1</Version>
+  <Image>Images\DNRGWTools.png</Image>
+  <Author>Greg Massaro</Author>
+  <Company>MNDNR - EWR</Company>
+  <Date>10/24/2012</Date>
+  <Targets>
+    <Target name="Desktop" version="10.1" />
+  </Targets>
+  <AddIn language="CLR" library="DNRGWTools.dll" namespace="DNRGWTools">
+    <ArcMap>
+      <Commands>
+        <Button id="MNDNR_-_EWR_DNRGWTools_DNRStickDiagrams" 
+                class="DNRStickDiagrams"
+                message="Generates a cross sectional view of wells in the study area. Wells will be created based on construction and lithology using the surface elevation and depth data for each well."
+                caption="DNR GW Stick Diagrams"
+                tip="DNR Well Stick Diagrams"
+                category="Add-In Controls"
+                image="Images\DNRStickDiagrams.png" />
+        <Button id="MNDNR_-_EWR_DNRGWTools_DNRExtractProfiles"
+                class="DNRExtractProfiles"
+                message="Generates a cross sectional line representing the surface of a given raster. The profile line will be created based on numeric values from the raster."
+                caption="DNR GW Extract Profiles"
+                tip="DNR Extract Profile Lines"
+                category="Add-In Controls"
+                image="Images\DNRExtractProfiles.png" />
+        <Button id="MNDNR_-_EWR_DNRGWTools_DNRGetXYZPoints"
+                class="DNRGetXYZPoints"
+                message="Generates a point file representing the intersections with well stick diagrams and the vertices of a given set of profile lines that were created in cross section view. The points are constructed with Z values based on the Y values of the profile lines in cross section view."
+                caption="DNR GW Collect XYZs"
+                tip="DNR Collect XYZ Points"
+                category="Add-In Controls"
+                image="Images\DNRGetXYZPoints.png" />
+      </Commands>
+      <Toolbars>
+        <Toolbar id="MNDNR_-_EWR_DNRGWTools_DNR_Groundwater_Toolbar"
+                 caption="DNR Groundwater Toolbar"
+                 showInitially="true">
+          <Items>
+            <Item refID="MNDNR_-_EWR_DNRGWTools_DNRStickDiagrams" />
+            <Button refID="MNDNR_-_EWR_DNRGWTools_DNRExtractProfiles" />
+            <Button refID="MNDNR_-_EWR_DNRGWTools_DNRGetXYZPoints" />
+          </Items>
+        </Toolbar>
+      </Toolbars>
+    </ArcMap>
+  </AddIn>
+</ESRI.Configuration>
