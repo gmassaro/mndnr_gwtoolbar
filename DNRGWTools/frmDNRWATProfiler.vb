@@ -28,12 +28,21 @@ Public Class frmDNRWATProfiler
   ' Revisions: Revised the code to allowe user to run the process on multiple rasters
   ' at one time.  I also stored the output path so that it could be re-used each time
   ' frmDNRWATprofiler is opened during an ArcMap session.
-  ' I marked each of my revision with "MJR" 
+  '
+  ' I marked each of my revisions with "V1.2" 
+  '
   ' I was using a 64-bit Windows machine (Windows Server 2008 r2) and had trouble
   ' Compiling the code.  The following ESRI and Microsoft articles led me to a
-
+  ' solution:
   ' http://support.esri.com/es/knowledgebase/techarticles/detail/37879
   ' http://support.microsoft.com/kb/2028833
+  ' http://social.msdn.microsoft.com/Forums/en-US/msbuild/thread/e5900710-9849-4d10-aa28-48b734d06bf2
+  '
+  ' So I had to run corflags on resgen.exe:  corflags.exe resgen.exe /32BIT+ /Force
+  ' And had to add this line to DNRGWTools.vbproj:
+  '   <ResGenToolArchitecture>Managed32Bit</ResGenToolArchitecture>
+  ' (It is the fourth line in the file, first item in the <PropertyGroup> section.
+  '
   '
   ' -----------------------------------------------------------------------------
   ' Description:
@@ -56,6 +65,7 @@ Public Class frmDNRWATProfiler
   Private pTHEXSecFields As IFields
   Private pTHERLayer As IRasterLayer
   Private pTHERaster As IRaster
+  Private pTHERasterList As List(Of IRasterLayer) = New List(Of IRasterLayer)
   Private strTHEPath As String
   Private blnTHEOverWrite As Boolean
   Private blnTHEAskAgain As Boolean
@@ -63,22 +73,43 @@ Public Class frmDNRWATProfiler
 
   Private Sub frmDNRWATProfiler_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
     g_blnRunning = False
-    tboBaseName.Text = "topo"
-    tboVertEx.Text = 50
+    tboBaseName.Text = "%vx_%l_%r" 'V1.2 topo
+    tboVertEx.Text = 50 
+    ttpToolTip.SetToolTip(Me.tboBaseName, "Output Naming Scheme, use '%v' to include Vertical Exaggeration, '%l' for the label value, and '%r' for the raster name") 'V1.2 Added
   End Sub
 
   Private Sub cboXSecLayer_SelectedIndexChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles cboXSecLayer.SelectedIndexChanged
     Call ComboBoxChange(cboXSecLayer)
   End Sub
 
-  Private Sub cboRasterLayer_SelectedIndexChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles cboRasterLayer.SelectedIndexChanged
-    Call ComboBoxChange(cboRasterLayer)
+  'V1.2 Commented this out
+  'Private Sub cboRasterLayer_SelectedIndexChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles cboRasterLayer.SelectedIndexChanged
+   ' Call ComboBoxChange(cboRasterLayer)
+  'End Sub
+
+  'V1.2 Added the Sub below
+  Private Sub lboRasterLayers_SelectedIndexChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles lboRasterLayers.SelectedIndexChanged
+    'Making this temp Combox to pass in as the required input parameter.
+    'Probably should have re-factored ComboBoxChange to accept any Windows Form Control.
+    Try
+        Dim pTempCombobox As ComboBox = New ComboBox 
+        pTempCombobox.Name = "lboRasterLayersTemp"
+        pTempCombobox.Text = "pTempCombobox"
+        Call ComboBoxChange(pTempCombobox)
+    Catch ex As Exception
+        MsgBox(ex.Message.ToString)
+    End Try
+
   End Sub
 
   Private Sub ComboBoxChange(ByVal cbo As ComboBox)
     'Enables certain buttons/comboboxes on the userform based on inputs.
     If cbo.Text = "" Then
       Exit Sub
+    End If
+    'V1.2 Added this If Block
+    If cbo.Name = "lboRasterLayersTemp" Then
+        pTHERasterList.Clear
     End If
 
     Dim i As Long
@@ -88,6 +119,21 @@ Public Class frmDNRWATProfiler
 
     For i = 0 To pMap.LayerCount - 1
       pLayer = pMap.Layer(i)
+      'V1.2 Added this If Block
+      If cbo.Name = "lboRasterLayersTemp" Then
+        If lboRasterLayers.SelectedItems.Contains(pLayer.Name) Then
+            'MsgBox(pLayer.GetType.ToString+vbNewLine+pLayer.GetType.BaseType.ToString+vbNewLine+pLayer.GetType.DeclaringType.ToString+pLayer.GetType.ReflectedType.ToString)
+
+            pTHERasterList.Add(pLayer)
+            pTHERLayer = pLayer
+            pTHERaster = pTHERLayer.Raster
+            obuSurface.Enabled = True
+            obuRaster.Enabled = True
+            Call ExtractProfileEnabler()
+        End If
+
+      End If
+
       If pLayer.Name = cbo.Text Then
         If cbo.Name = cboXSecLayer.Name Then
           pTHEXSecs = pLayer
@@ -113,13 +159,14 @@ Public Class frmDNRWATProfiler
 
           Call ExtractProfileEnabler()
           Exit Sub
-        ElseIf cbo.Name = cboRasterLayer.Name Then
-          pTHERLayer = pLayer
-          pTHERaster = pTHERLayer.Raster
-          obuSurface.Enabled = True
-          obuRaster.Enabled = True
-          Call ExtractProfileEnabler()
-          Exit Sub
+        'V1.2 Commented this out
+        'ElseIf cbo.Name = cboRasterLayer.Name Then
+        '  pTHERLayer = pLayer
+        '  pTHERaster = pTHERLayer.Raster
+        '  obuSurface.Enabled = True
+        '  obuRaster.Enabled = True
+        '  Call ExtractProfileEnabler()
+        '  Exit Sub
         End If
       End If
     Next i
@@ -129,12 +176,19 @@ Public Class frmDNRWATProfiler
       cboXSecLabel.Enabled = False
       cboXSecLabel.BackColor = SystemColors.Control
     End If
-    comGenProfiles.Enabled = False
+    If cbo.Name <> "lboRasterLayersTemp" Then 'V1.2 Added this condition because the lboRasterLayersTemp does not have an Exit Sub
+        comGenProfiles.Enabled = False
+    End If
   End Sub
 
   Private Sub comOutput_Click(ByVal sender As Object, ByVal e As System.EventArgs) Handles comOutput.Click
     'This subroutine enables the user to select the output batch location from
     '  an user defined dialog.
+    'V1.2 Add the IF block below so the output path defaults to the previous run.
+    If Not (strTHEPath is Nothing) and (strTHEPath <> "") then
+      flddlgEPBrowseFolders.SelectedPath = strTHEPath
+    End If
+    
     flddlgEPBrowseFolders.ShowDialog()
     strTHEPath = flddlgEPBrowseFolders.SelectedPath
     tboOutput.Text = strTHEPath
@@ -164,7 +218,16 @@ Public Class frmDNRWATProfiler
   End Sub
 
   Private Sub comGenProfiles_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles comGenProfiles.Click
-    Call ExtractProfile(sglTheVertEx, pTHERLayer, pTHERaster, strTHEPath)
+
+    'V1.2 Move the Call of ExtractProfiles into this loop
+    For Each pRasterLayer As IRasterLayer in pTHERasterList 'V1.2
+        Try
+            Call ExtractProfile(sglTheVertEx, pRasterLayer, pRasterLayer.Raster, strTHEPath,pRasterLayer.FilePath.ToString = pTHERasterList(pTHERasterList.Count-1).FilePath.ToString)
+        Catch ex As Exception
+            MsgBox("Error Try")
+        End Try
+    Next
+    
     'sglTheVertEx = Nothing
     pTHEXSecs = Nothing
     pTHEXSecFields = Nothing
@@ -176,16 +239,28 @@ Public Class frmDNRWATProfiler
   End Sub
 
   Private Sub ExtractProfileEnabler()
-    If cboRasterLayer.Text <> "" And tboOutput.Text <> "" And tboBaseName.Text <> "" _
-          And IsNumeric(tboVertEx.Text) And cboXSecLayer.Text <> "" Then
-      comGenProfiles.Enabled = True
+    'V1.2 Removed the first condition of this line
+    'If cboRasterLayer.Text <> "" And tboOutput.Text <> "" And tboBaseName.Text <> "" _
+    If tboOutput.Text <> "" And tboBaseName.Text <> "" _
+          And IsNumeric(tboVertEx.Text) And cboXSecLayer.Text <> "" _
+          And lboRasterLayers.SelectedItems.Count > 0 Then  'V1.2 Added this final condition
+      'V1.2 Added this first IF statement.  If user is running on more than one raster, then
+      'MUST include %r (raster name) in the naming scheme.
+      If (lboRasterLayers.SelectedItems.Count>1) then
+        If (tboBaseName.Text.Contains("%r")) then 
+          comGenProfiles.Enabled = True
+        End If
+      Else
+        comGenProfiles.Enabled = True
+      End If
+      
       sglTheVertEx = tboVertEx.Text
     Else : comGenProfiles.Enabled = False
     End If
   End Sub
 
   Private Sub ExtractProfile(ByRef sglTheVertEx As Single, ByRef pRLayer As IRasterLayer, _
-                             ByRef pRaster As IRaster, ByRef strPath As String)
+                             ByRef pRaster As IRaster, ByRef strPath As String, Optional ByVal blnDisplayFinalMessage As Boolean = True)
     On Error GoTo EH
     'If no layer is currently selected in the xsec combobox, then an error message
     '   is displayed and the sub is exited.
@@ -193,15 +268,29 @@ Public Class frmDNRWATProfiler
       MsgBox("Please select the cross section layer.", , "Select a Layer")
       Exit Sub
     End If
-    'If no layer is currently selected in the raster combobox, then an error message
+    'V1.2 Commented out the block below
+    ''If no layer is currently selected in the raster combobox, then an error message
+    ''   is displayed and the sub is exited.
+    'If cboRasterLayer.SelectedIndex = -1 Then
+    '  MsgBox("Please select the raster layer.", , "Select a Layer")
+    '  Exit Sub
+    'End If
+    'V1.2 Added If Block below
+    'If no layers are currently selected in the raster listbox, then an error message
     '   is displayed and the sub is exited.
-    If cboRasterLayer.SelectedIndex = -1 Then
-      MsgBox("Please select the raster layer.", , "Select a Layer")
+    If lboRasterLayers.SelectedItems.Count = 0 Then
+      MsgBox("Please select the raster layer(s).", , "Select a Layer")
       Exit Sub
     End If
     'If no field has been selected in the Xsec Label combobox, then an
     '   error message displays and the sub is exited.
     If cboXSecLabel.SelectedIndex = -1 Then
+      MsgBox("Please select the field containing" & vbCrLf & _
+        "the label for each cross section.", , "Select Field")
+      Exit Sub
+    End If
+    'V1.2 Added If Block below
+    If pTHEXSecFields is nothing Then
       MsgBox("Please select the field containing" & vbCrLf & _
         "the label for each cross section.", , "Select Field")
       Exit Sub
@@ -306,8 +395,13 @@ Public Class frmDNRWATProfiler
                 GoTo NextXSec
               End If
               pCurve = GetPolyline(pFeature)
-              strFileName = "x" & Int(sglTheVertEx) & "_" & _
-                basDNRWATGW.StripString(strLabel) & "_" & tboBaseName.Text
+              'V1.2 strFileName = "x" & Int(sglTheVertEx) & "_" & _
+              'V1.2  basDNRWATGW.StripString(strLabel) & "_" & tboBaseName.Text
+              Dim pBaseName As String = tboBaseName.Text 'V1.2
+              If Not (pBaseName.Contains("%l")) then 'V1.2 Added this to append the %l to the basename if it was not already there.
+                pBaseName+= "_%l"
+              End If
+              strFileName = pBaseName.Replace("%v",Int(sglTheVertEx).tostring).Replace("%r",basDNRWATGW.StripString(pRLayer.Name)).Replace("%l",basDNRWATGW.StripString(strLabel)) 'V1.2
               pfrmProgress.lblProcess.Text = "Processing cross section: " & _
                 strLabel & " (" & lngXSec & " of " & sglNumFeatures & ")"
               pFC = Line2XYZMPoints(pCurve, pRaster, pSurface, strPath, strFileName, strLabel, _
@@ -331,7 +425,9 @@ NextXSec:
     pfrmProgress.Close()
     pfrmProgress = Nothing
     If blnTHEOverWrite Then
-      MsgBox("Finished Processing", vbOKOnly, "Extract Profiles")
+        If (blnDisplayFinalMessage=True) 'V1.2 Added this condition
+          MsgBox("Finished Processing", vbOKOnly, "Extract Profiles")
+        End If
     Else : MsgBox("Bailing out of extract profiles...", vbOKOnly, "Extract Profiles")
     End If
     Exit Sub

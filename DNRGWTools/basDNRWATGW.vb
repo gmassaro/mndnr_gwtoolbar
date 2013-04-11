@@ -21,6 +21,28 @@ Module basDNRWATGW
   ' Revised by:  Greg Massaro
   ' Revision Date: Jan 25 2011
   ' Revisions: 
+  '
+  ' Revised by: Matthew Rantala, Minnesota Geological Survey, mjrantal@umn.edu
+  ' Revision Date: April 5 2013
+  ' Revisions: Revised the code to allowe user to run the process on multiple rasters
+  ' at one time.  I also stored the output path so that it could be re-used each time
+  ' frmDNRWATprofiler is opened during an ArcMap session.
+  '
+  ' I marked each of my revisions with "V1.2" 
+  '
+  ' I was using a 64-bit Windows machine (Windows Server 2008 r2) and had trouble
+  ' Compiling the code.  The following ESRI and Microsoft articles led me to a
+  ' solution:
+  ' http://support.esri.com/es/knowledgebase/techarticles/detail/37879
+  ' http://support.microsoft.com/kb/2028833
+  ' http://social.msdn.microsoft.com/Forums/en-US/msbuild/thread/e5900710-9849-4d10-aa28-48b734d06bf2
+  '
+  ' So I had to run corflags on resgen.exe:  corflags.exe resgen.exe /32BIT+ /Force
+  ' And had to add this line to DNRGWTools.vbproj:
+  '   <ResGenToolArchitecture>Managed32Bit</ResGenToolArchitecture>
+  ' (It is the fourth line in the file, first item in the <PropertyGroup> section.
+  '
+  '
   ' -----------------------------------------------------------------------------
   ' Description:
   '           Runs specific code and forms related to the DNR Groundwater
@@ -34,14 +56,18 @@ Module basDNRWATGW
   ' Returns:
   '==============================================================================
   Public g_blnRunning As Boolean = False
+  Private pDefaultDirectory As String = "" 'V1.2 Added
+  
 
   Public Sub DNR_WAT_ExtractProfiles()
-    Dim pfrmExtractProfiles As frmDNRWATProfiler
+    Dim pfrmExtractProfiles As frmDNRWATProfiler 
     pfrmExtractProfiles = New frmDNRWATProfiler
 
     'Clears the layer listbox of previous layers in the list.
     pfrmExtractProfiles.cboXSecLayer.Items.Clear()
-    pfrmExtractProfiles.cboRasterLayer.Items.Clear()
+    'V1.2 Commented pfrmExtractProfiles.cboRasterLayer.Items.Clear()
+    pfrmExtractProfiles.lboRasterLayers.Items.Clear() 'V1.2
+
     Dim pMap As IMap
     pMap = My.ArcMap.Document.FocusMap 'pMxDoc.FocusMap
     Dim pLayer As ILayer
@@ -57,10 +83,21 @@ Module basDNRWATGW
           pfrmExtractProfiles.cboXSecLayer.Items.Add(pLayer.Name)
         End If
       ElseIf TypeOf pLayer Is IRasterLayer Then
-        pfrmExtractProfiles.cboRasterLayer.Items.Add(pLayer.Name)
+        'V1.2 pfrmExtractProfiles.cboRasterLayer.Items.Add(pLayer.Name)
+        pfrmExtractProfiles.lboRasterLayers.Items.Add(pLayer.Name) 'V1.2
       End If
     Next i
+    
+    'V1.2 Add If Block below
+    If (pDefaultDirectory<>"") then
+      pfrmExtractProfiles.tboOutput.Text = pDefaultDirectory
+    End If
     pfrmExtractProfiles.ShowDialog()
+    'V1.2 Also added IF block below
+    If (pfrmExtractProfiles.tboOutput.Text.Trim <> "") and (Not pfrmExtractProfiles.tboOutput.Text is Nothing) then
+      pDefaultDirectory=pfrmExtractProfiles.tboOutput.Text
+    End If
+    
     pfrmExtractProfiles = Nothing
   End Sub
 
