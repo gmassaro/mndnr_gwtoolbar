@@ -22,6 +22,19 @@ Public Class frmDNRWATProfiler
   ' Revised by: Greg Massaro
   ' Revision Date: Jan 25 2011
   ' Revisions:
+  '
+  ' Revised by: Matthew Rantala, Minnesota Geological Survey, mjrantal@umn.edu
+  ' Revision Date: April 5 2013
+  ' Revisions: Revised the code to allowe user to run the process on multiple rasters
+  ' at one time.  I also stored the output path so that it could be re-used each time
+  ' frmDNRWATprofiler is opened during an ArcMap session.
+  ' I marked each of my revision with "MJR" 
+  ' I was using a 64-bit Windows machine (Windows Server 2008 r2) and had trouble
+  ' Compiling the code.  The following ESRI and Microsoft articles led me to a
+
+  ' http://support.esri.com/es/knowledgebase/techarticles/detail/37879
+  ' http://support.microsoft.com/kb/2028833
+  '
   ' -----------------------------------------------------------------------------
   ' Description:
   '           Runs a batch process to generate shapefiles from any raster layer.
